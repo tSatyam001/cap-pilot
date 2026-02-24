@@ -2,8 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+function normalizeEnv(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  // Guard against accidental quotes/whitespace in deployment env vars.
+  return value.trim().replace(/^['"]|['"]$/g, '');
+}
+
+const SUPABASE_URL = normalizeEnv(import.meta.env.VITE_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = normalizeEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(

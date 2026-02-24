@@ -2,8 +2,13 @@ function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
+function normalizeEnv(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.trim().replace(/^['"]|['"]$/g, '');
+}
+
 export function getAppBaseUrl(): string {
-  const configured = import.meta.env.VITE_APP_URL?.trim();
+  const configured = normalizeEnv(import.meta.env.VITE_APP_URL);
   if (configured) {
     return stripTrailingSlash(configured);
   }
