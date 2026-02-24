@@ -65,7 +65,7 @@ export default function Auth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: appUrl('/'),
+        redirectTo: appUrl('/auth'),
       },
     });
 
