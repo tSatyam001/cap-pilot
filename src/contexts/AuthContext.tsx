@@ -38,12 +38,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: appUrl('/email-verified') },
     });
-    return { error: error as Error | null };
+    if (error) return { error: error as Error | null };
+
+    const identities = data.user?.identities ?? [];
+    if (identities.length === 0) {
+      return {
+        error: new Error(
+          'This email is already associated with an account. Use Sign In, Continue with Google, or Forgot password.'
+        ),
+      };
+    }
+
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {

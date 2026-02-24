@@ -109,7 +109,11 @@ export default function Auth() {
     const fn = mode === 'login' ? signIn : signUp;
     const { error } = await fn(normalizedEmail, password);
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      const normalizedMessage =
+        mode === 'login' && /invalid login credentials/i.test(error.message)
+          ? 'Invalid email/password. If this email uses Google, click Continue with Google or use Forgot password.'
+          : error.message;
+      toast({ title: 'Error', description: normalizedMessage, variant: 'destructive' });
     } else if (mode === 'signup') {
       toast({ title: 'Account created', description: 'Please check your email to verify your account.' });
       setMode('login');
