@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,67 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const oauthCallbackHandledRef = useRef(false);
   const { toast } = useToast();
 
   if (loading) return <div className="flex items-center justify-center min-h-screen bg-background"><p className="text-muted-foreground">Loading...</p></div>;
   if (user) return <Navigate to="/" replace />;
+
+  useEffect(() => {
+    if (oauthCallbackHandledRef.current) return;
+    oauthCallbackHandledRef.current = true;
+
+    const finishOAuthCallback = async () => {
+      const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+      const hashParams = new URLSearchParams(hash);
+      const queryParams = new URLSearchParams(window.location.search);
+
+      const callbackError = hashParams.get('error_description') || queryParams.get('error_description');
+      if (callbackError) {
+        toast({ title: 'Google sign-in failed', description: callbackError, variant: 'destructive' });
+        return;
+      }
+
+      const authCode = queryParams.get('code');
+      if (authCode) {
+        const { error } = await supabase.auth.exchangeCodeForSession(authCode);
+        if (error) {
+          toast({ title: 'Google sign-in failed', description: error.message, variant: 'destructive' });
+        }
+
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState(window.history.state, '', cleanUrl);
+        return;
+      }
+
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      if (accessToken) {
+        if (!refreshToken) {
+          toast({
+            title: 'Google sign-in failed',
+            description: 'OAuth callback is missing refresh_token. Check Google/Supabase OAuth redirect settings.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) {
+          toast({ title: 'Google sign-in failed', description: error.message, variant: 'destructive' });
+        }
+
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+        window.history.replaceState(window.history.state, '', cleanUrl);
+      }
+    };
+
+    void finishOAuthCallback();
+  }, [toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
