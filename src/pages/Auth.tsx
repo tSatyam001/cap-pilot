@@ -124,6 +124,9 @@ export default function Auth() {
       provider: 'google',
       options: {
         redirectTo: appUrl('/auth'),
+        queryParams: {
+          prompt: 'select_account',
+        },
       },
     });
 
