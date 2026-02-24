@@ -22,10 +22,8 @@ export default function Auth() {
   const oauthCallbackHandledRef = useRef(false);
   const { toast } = useToast();
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen bg-background"><p className="text-muted-foreground">Loading...</p></div>;
-  if (user) return <Navigate to="/" replace />;
-
   useEffect(() => {
+    if (loading || user) return;
     if (oauthCallbackHandledRef.current) return;
     oauthCallbackHandledRef.current = true;
 
@@ -79,7 +77,10 @@ export default function Auth() {
     };
 
     void finishOAuthCallback();
-  }, [toast]);
+  }, [toast, loading, user]);
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen bg-background"><p className="text-muted-foreground">Loading...</p></div>;
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
