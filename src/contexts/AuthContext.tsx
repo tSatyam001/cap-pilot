@@ -28,8 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Avoid clobbering a just-established OAuth session with a stale null read.
+      setSession(current => current ?? session);
+      setUser(current => current ?? session?.user ?? null);
       setLoading(false);
     });
 
