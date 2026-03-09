@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   open: boolean;
@@ -12,8 +13,16 @@ interface Props {
   editing: Stakeholder | null;
 }
 
+const MAX_SHARE_DIGITS = 20;
+
+const toWholeShareBigInt = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return 0n;
+  return BigInt(Math.trunc(value));
+};
+
 export default function StakeholderDialog({ open, onClose, editing }: Props) {
-  const { addStakeholder, updateStakeholder } = useCapTable();
+  const { stakeholders, addStakeholder, updateStakeholder } = useCapTable();
+  const { toast } = useToast();
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('Founder');
   const [shares, setShares] = useState('');
@@ -33,9 +42,53 @@ export default function StakeholderDialog({ open, onClose, editing }: Props) {
     }
   }, [editing, open]);
 
+  useEffect(() => {
+    if (shares.length > MAX_SHARE_DIGITS) {
+      setShares(shares.slice(0, MAX_SHARE_DIGITS));
+    }
+  }, [shares]);
+
+  const handleSharesChange = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '');
+    setShares(digitsOnly.slice(0, MAX_SHARE_DIGITS));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data = { name, role, shares: Number(shares), shareClass };
+    const shareDigits = shares.trim();
+    if (shareDigits.length === 0 || Number(shareDigits) < 1) {
+      toast({
+        title: 'Invalid share count',
+        description: 'Number of shares must be at least 1.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (shareDigits.length > MAX_SHARE_DIGITS) {
+      toast({
+        title: 'Share limit exceeded',
+        description: `Shares can be at most ${MAX_SHARE_DIGITS} digits.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const currentTotalWithoutEditing = stakeholders
+      .filter(s => !editing || s.id !== editing.id)
+      .reduce((sum, s) => sum + toWholeShareBigInt(s.shares), 0n);
+    const proposedTotal = currentTotalWithoutEditing + BigInt(shareDigits);
+
+    if (proposedTotal.toString().length > MAX_SHARE_DIGITS) {
+      toast({
+        title: 'Total shares limit exceeded',
+        description: `Total shares cannot exceed ${MAX_SHARE_DIGITS} digits.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const data = { name, role, shares: Number(shareDigits), shareClass };
     if (editing) {
       updateStakeholder({ ...data, id: editing.id });
     } else {
@@ -68,7 +121,17 @@ export default function StakeholderDialog({ open, onClose, editing }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="shares">Number of Shares</Label>
-            <Input id="shares" type="number" min="1" value={shares} onChange={e => setShares(e.target.value)} placeholder="e.g. 1000000" required />
+            <Input
+              id="shares"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={MAX_SHARE_DIGITS}
+              value={shares}
+              onChange={e => handleSharesChange(e.target.value)}
+              placeholder="e.g. 1000000"
+              required
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Share Class</Label>
